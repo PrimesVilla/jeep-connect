@@ -147,7 +147,7 @@ function saveRoutesToServer() {
 
 
 // Predefined colors
-const predefinedColors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'];
+const predefinedColors = ['#FF0000', '#00FF00', '#0000FF', '#FF6600', '#FF00FF'];
 function getRandomColor() {
     return predefinedColors[Math.floor(Math.random() * predefinedColors.length)];
 }
