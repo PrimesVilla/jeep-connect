@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet Route Editor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <style>
+        #map { height: 500px; }
+        .controls { margin: 10px; }
+
+        .leaflet-control-container .leaflet-routing-container-hide {
+        display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <select id="routeSelector" onchange="loadSelectedRoute()">
+            <option value="">Select a route</option>
+        </select>
+        <button onclick="addNewRoute()">Add New Route</button>
+        <button onclick="saveRoutesToServer()">Save Routes</button>
+
+    </div>
+    <div id="map"></div>
+
+    <select id="removeSelector">
+        <option value="">Select a waypoint to remove</option>
+    </select>
+
+    <button onclick="deleteWaypoint()">Delete Waypoint</button>
+    <button onclick="resetWaypoint()">Reset Waypoints</button>
+
+
+    <script>
+        let map = L.map('map').setView([7.1072857, 125.5946292], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        let routes = [];
+        let activeRoute = null;
+        let data = null;
+        let updatedRoute = null;
+        let resetRoute = null;
+
+        async function fetchRoutes() {
+            const response = await fetch('/data');
+            data = await response.json();
+            updateRouteSelector(data);
+        }
+
+        function updateRouteSelector(routeData) {
+            let selector = document.getElementById("routeSelector");
+            selector.innerHTML = '<option value="">Select a route</option>';
+            routeData.forEach((route, index) => {
+                let option = document.createElement("option");
+                option.value = index;
+                option.textContent = route.X1;
+                selector.appendChild(option);
+            });
+            routes = routeData;
+        }
+
+        function updateWaypointSelector() {
+            // Clear current options (except the first option)
+            removeSelector.innerHTML = '<option value="">Select a waypoint to remove</option>';
+
+            // Add options for each waypoint
+            activeRoute.getWaypoints().forEach(function(waypoint, index) {
+                var option = document.createElement('option');
+                option.value = index;
+                option.textContent = waypoint.name + ' (' + waypoint.latLng.lat.toFixed(4) + ', ' + waypoint.latLng.lng.toFixed(4) + ')';
+                removeSelector.appendChild(option);
+            });
+        }
+
+        function loadSelectedRoute() {
+            let selector = document.getElementById("routeSelector");
+            let selectedIndex = selector.value;
+            if (selectedIndex === "") return;
+
+            if (activeRoute) map.removeControl(activeRoute);
+
+            const selectedRoute = routes[selectedIndex];
+            
+            const waypoints = selectedRoute.lat_long.map(([lat, lng, name]) => {
+                return L.Routing.waypoint(L.latLng(parseFloat(lat), parseFloat(lng)), name);
+            });
+            resetRoute = selectedRoute;
+
+            displayRoute(selectedRoute, waypoints);
+
+
+            updateWaypointSelector();
+        }
+
+        function displayRoute(route, waypoints) {
+            activeRoute = L.Routing.control({
+                waypoints: waypoints,
+                createMarker: (i, waypoint) => L.marker(waypoint.latLng, { draggable: true}).bindPopup(waypoint.name),
+                show: false
+            }).addTo(map);
+
+
+            activeRoute.on('waypointschanged', function() {
+                let hold = [];
+                
+                activeRoute.getWaypoints().map((wp, i)=>{
+                    hold.push([String(wp.latLng.lat), String(wp.latLng.lng), route.lat_long[i][2]])
+                    updateWaypointSelector();
+                });
+                updatedRoute = {X1: route.X1, lat_long: hold}         
+            });
+        }
+
+        function resetWaypoint () {
+            map.removeControl(activeRoute);
+            activeRoute = null;
+            const waypoints = resetRoute.lat_long.map(([lat, lng, name]) => {
+                return L.Routing.waypoint(L.latLng(parseFloat(lat), parseFloat(lng)), name);
+            });
+            displayRoute(resetRoute, waypoints);
+            updateWaypointSelector()
+        }
+
+        function saveRoutesToServer() {
+            if (updatedRoute == null)
+                return alert('There are no changes on coordinates');
+                            
+            fetch("/data", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedRoute)
+            })
+            .then(response => response.text())
+            .then(data => console.log(data))
+            .then(alert("✅ Waypoints saved"))
+            .catch(error => console.error("❌ Error saving routes:", error));
+
+        }
+
+
+        async function saveRoutes() {
+            if (activeRoute) {
+                let selector = document.getElementById("routeSelector");
+                let selectedIndex = selector.value;
+                if (selectedIndex !== "") {
+                    routes[selectedIndex] = activeRoute.getWaypoints().map(wp => [wp.latLng.lat, wp.latLng.lng]);
+                }
+            }
+            await fetch('/routes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ routes })
+            });
+            alert("Routes saved successfully");
+        }
+
+        fetchRoutes();
+    </script>
+</body>
+</html>

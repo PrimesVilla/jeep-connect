@@ -64,8 +64,9 @@ function extractRouteCoordinates() {
         // Create a routing control (temporarily added to extract nodes)
         const routeControl = L.Routing.control({
             waypoints,
-            lineOptions: { styles: [{ color: getRandomColor(), weight: 5 }] }, 
-            createMarker: (i, waypoint) => L.marker(waypoint.latLng).bindPopup(waypoint.landmark)
+            createMarker: (i, waypoint) => L.marker(waypoint.latLng).bindPopup(waypoint.name),
+            show: false,
+            lineOptions: { styles: [{ color: getRandomColor(),opacity: 5, weight: 3 }] }
         })
 
         // Extract all nodes when route is computed
@@ -101,27 +102,6 @@ function populateDropdown() {
     });
 }
 
-
-/**Remove all active routes and update selected ones
-function updateRoutes() {
-    activeRoutes.forEach(route => map.removeControl(route));
-    activeRoutes = [];
-
-    document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-        const routeName = checkbox.id;
-        const waypoints = routeCoordinates[routeName].map(latlng => L.Routing.waypoint(latlng));
-
-        if (!waypoints.length) return;
-
-        const route = L.Routing.control({
-            waypoints,
-            lineOptions: { styles: [{ color: getRandomColor(), weight: 5 }] },
-            createMarker: (i, waypoint) => L.marker(waypoint.latLng).bindPopup(waypoint.name).openPopup()
-        }).addTo(map);
-
-        activeRoutes.push(route);
-    });
-}*/
 
 function toggleRouteVisibility() {
     Object.keys(routeControls).forEach(routeName => {
@@ -172,6 +152,7 @@ function getRandomColor() {
     return predefinedColors[Math.floor(Math.random() * predefinedColors.length)];
 }
 
-// Draggable waypoint marker
+/* Draggable waypoint marker to find nearest route
 const waypoint = L.marker([7.0617824, 125.5929889], { draggable: true, styles: [{color: '#FFFFFF', weight: 5 }] }).addTo(map);
 waypoint.on('dragend', findClosestRoutes);
+*/
